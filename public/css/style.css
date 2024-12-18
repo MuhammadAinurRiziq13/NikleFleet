@@ -1,0 +1,35 @@
+.bg-dark-blue{
+    background-color: #1D263B !important;
+}
+.dark-blue{
+    color: #1D263B;
+}
+.hamburger:hover{
+    color: #1D263B;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.page-item a{
+    color: #1D263B !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.page-item:hover a{
+    background-color: #d3d3d3 !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.page-item.active a{
+    color: #fff !important;
+    background-color: #1D263B !important;
+    border-color: #1D263B !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.page-item.active:hover {
+    background-color: #1D263B !important;
+    border-color: #1D263B !important;
+}
+.select2-container .select2-selection--single {
+    padding: 6px !important;
+    height: 39px;
+    border: 1px solid rgb(201, 201, 201);
+    border-radius: 6px;
+}
+
