@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\VehicleReservations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\Facades\DataTables;
 
 class SubmissionReservationController extends Controller
 {
     public function index()
     {
+        Log::info('Accessed submission reservation index page.');
         $breadcrumb = (object)[
             'title' => 'Daftar Pengajuan Data Reservasi',
             'list' => ['Home', 'Pengajuan Reservasi']
@@ -25,6 +27,7 @@ class SubmissionReservationController extends Controller
 
     public function list(Request $request)
     {
+        Log::info('Accessed submission reservation list.', ['filters' => $request->all()]);
         // Ambil ID pengguna yang sedang login
         $loggedInUserId = Auth::id();
 
@@ -100,9 +103,9 @@ class SubmissionReservationController extends Controller
             ->make(true);
     }
 
-
     public function show(string $id)
     {
+        Log::info('Accessed submission reservation details.', ['reservation_id' => $id]);
         // Mengambil data reservation dengan join ke tabel employees, vehicles, dan users
         $reservation = VehicleReservations::with(['employee', 'vehicle', 'mine', 'region', 'approver1', 'approver2'])
             ->find($id);
@@ -126,6 +129,7 @@ class SubmissionReservationController extends Controller
 
     public function proses(string $id)
     {
+        Log::info('Accessed submission reservation processing page.', ['reservation_id' => $id]);
         // Mengambil data reservation dengan join ke tabel employees, vehicles, dan users
         $reservation = VehicleReservations::with(['employee', 'vehicle', 'mine', 'region', 'approver1', 'approver2'])
             ->find($id);
@@ -149,6 +153,7 @@ class SubmissionReservationController extends Controller
 
     public function update(Request $request, $id)
     {
+        Log::info('Attempting to update submission reservation.', ['reservation_id' => $id, 'data' => $request->all()]);
         // Validasi input
         $validatedData = $request->validate([
             'status' => 'required|in:approved,rejected',
@@ -168,7 +173,6 @@ class SubmissionReservationController extends Controller
             } else if ($userPosition === 'approver pusat') {
                 $reservation->approver_2_status = 'approved';
                 $reservation->status = 'approved';
-                //update vehicle_status menjadi 'in_use'
                 // Update vehicle_status menjadi 'in_use'
                 $vehicle = $reservation->vehicle;
                 if ($vehicle) {
@@ -188,6 +192,8 @@ class SubmissionReservationController extends Controller
 
         // Simpan perubahan
         $reservation->save();
+
+        Log::info('Submission reservation updated successfully.', ['reservation_id' => $id]);
 
         // Redirect dengan pesan sukses
         return redirect('/submission-reservation')

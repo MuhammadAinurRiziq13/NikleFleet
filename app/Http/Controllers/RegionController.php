@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Regions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\Facades\DataTables;
 
 class RegionController extends Controller
 {
     public function index()
     {
+        Log::info('Accessed region index page.');
         $breadcrumb = (object)[
             'title' => 'Data Region',
             'list' => ['Home', 'Region']
@@ -20,21 +22,17 @@ class RegionController extends Controller
             'title' => 'Daftar Region yang terdaftar dalam sistem'
         ];
 
-        return view(
-            'region.index',
-            [
-                'breadcrumb' => $breadcrumb,
-                'page' => $page,
-            ]
-        );
+        return view('region.index', [
+            'breadcrumb' => $breadcrumb,
+            'page' => $page,
+        ]);
     }
 
     public function list(Request $request)
     {
-        // Query dasar
+        Log::info('Accessed region list API.');
         $regions = Regions::select();
 
-        // Gunakan DataTables untuk mengelola data
         return DataTables::of($regions)
             ->addIndexColumn()
             ->addColumn('aksi', function ($region) {
@@ -53,6 +51,7 @@ class RegionController extends Controller
 
     public function create()
     {
+        Log::info('Accessed create region form.');
         $breadcrumb = (object)[
             'title' => '',
             'list' => ['Home', 'Region', 'Tambah']
@@ -70,25 +69,23 @@ class RegionController extends Controller
 
     public function store(Request $request)
     {
+        Log::info('Attempting to store new region.', ['data' => $request->all()]);
         $validatedData = $request->validate([
             'region_name' => 'required|string|max:255',
             'address' => 'required|string',
         ]);
 
-        // Simpan data ke database
         Regions::create($validatedData);
 
-        // Redirect dengan pesan sukses
+        Log::info('New region stored successfully.', ['region_name' => $validatedData['region_name']]);
         return redirect('/region')->with('success', 'Data Region berhasil disimpan.');
     }
 
-
     public function show(string $id)
     {
-        // Mengambil data reservation dengan join ke tabel regions, regions, dan users
+        Log::info('Accessed region detail.', ['region_id' => $id]);
         $region = Regions::find($id);
 
-        // Mengatur breadcrumb dan page
         $breadcrumb = (object)[
             'title' => 'Detail Region',
             'list' => ['Home', 'Region', 'Detail']
@@ -97,7 +94,6 @@ class RegionController extends Controller
             'title' => 'Detail Data Region'
         ];
 
-        // Mengirim data ke view
         return view('region.show', [
             'breadcrumb' => $breadcrumb,
             'page' => $page,
@@ -107,10 +103,9 @@ class RegionController extends Controller
 
     public function edit(string $id)
     {
-        // Mengambil data reservation dengan join ke tabel regions, regions, dan users
+        Log::info('Accessed edit region form.', ['region_id' => $id]);
         $region = Regions::find($id);
 
-        // Mengatur breadcrumb dan page
         $breadcrumb = (object)[
             'title' => 'Edit Region',
             'list' => ['Home', 'Region', 'Edit']
@@ -119,7 +114,6 @@ class RegionController extends Controller
             'title' => 'Edit Data Region'
         ];
 
-        // Mengirim data ke view
         return view('region.edit', [
             'breadcrumb' => $breadcrumb,
             'page' => $page,
@@ -129,34 +123,35 @@ class RegionController extends Controller
 
     public function update(Request $request, $id)
     {
+        Log::info('Attempting to update region.', ['region_id' => $id, 'data' => $request->all()]);
         $validatedData = $request->validate([
             'region_name' => 'required|string|max:255',
             'address' => 'required|string',
         ]);
 
-        // Temukan data dan update di database
         $region = Regions::findOrFail($id);
         $region->update($validatedData);
 
-        // Redirect dengan pesan sukses
+        Log::info('Region updated successfully.', ['region_id' => $id]);
         return redirect('/region')->with('success', 'Data Region berhasil diperbarui.');
     }
 
     public function destroy(string $id)
     {
-        // Cek apakah Region ada
+        Log::info('Attempting to delete region.', ['region_id' => $id]);
         $region = Regions::find($id);
+
         if (!$region) {
+            Log::warning('Region not found for deletion.', ['region_id' => $id]);
             return redirect('/region')->with('error', 'Data Region tidak ditemukan');
         }
 
         try {
-            // Hapus data Region
             $region->delete();
-
+            Log::info('Region deleted successfully.', ['region_id' => $id]);
             return redirect('/region')->with('success', 'Data Region berhasil dihapus');
         } catch (\Illuminate\Database\QueryException $e) {
-            // Jika terjadi error ketika menghapus data
+            Log::error('Failed to delete region.', ['region_id' => $id, 'error' => $e->getMessage()]);
             return redirect('/region')->with('error', 'Data Region gagal dihapus karena masih terdapat tabel lain yang terkait dengan data ini');
         }
     }

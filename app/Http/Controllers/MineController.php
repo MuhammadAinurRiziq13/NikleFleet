@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Mines;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Yajra\DataTables\Contracts\DataTable;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\Facades\DataTables;
 
 class MineController extends Controller
 {
     public function index()
     {
+        Log::info('Accessed mine index page.');
         $breadcrumb = (object)[
             'title' => 'Data Tambang',
             'list' => ['Home', 'Tambang']
@@ -21,21 +22,17 @@ class MineController extends Controller
             'title' => 'Daftar Tambang yang terdaftar dalam sistem'
         ];
 
-        return view(
-            'mine.index',
-            [
-                'breadcrumb' => $breadcrumb,
-                'page' => $page,
-            ]
-        );
+        return view('mine.index', [
+            'breadcrumb' => $breadcrumb,
+            'page' => $page,
+        ]);
     }
 
     public function list(Request $request)
     {
-        // Query dasar
+        Log::info('Accessed mine list API.');
         $mines = Mines::select();
 
-        // Gunakan DataTables untuk mengelola data
         return DataTables::of($mines)
             ->addIndexColumn()
             ->addColumn('aksi', function ($mine) {
@@ -54,6 +51,7 @@ class MineController extends Controller
 
     public function create()
     {
+        Log::info('Accessed create mine form.');
         $breadcrumb = (object)[
             'title' => '',
             'list' => ['Home', 'Tambang', 'Tambah']
@@ -71,25 +69,23 @@ class MineController extends Controller
 
     public function store(Request $request)
     {
+        Log::info('Attempting to store new mine.', ['data' => $request->all()]);
         $validatedData = $request->validate([
             'mine_name' => 'required|string|max:255',
             'address' => 'required|string',
         ]);
 
-        // Simpan data ke database
         Mines::create($validatedData);
 
-        // Redirect dengan pesan sukses
+        Log::info('New mine stored successfully.', ['mine_name' => $validatedData['mine_name']]);
         return redirect('/mine')->with('success', 'Data tambang berhasil disimpan.');
     }
 
-
     public function show(string $id)
     {
-        // Mengambil data reservation dengan join ke tabel mines, mines, dan users
+        Log::info('Accessed mine detail.', ['mine_id' => $id]);
         $mine = Mines::find($id);
 
-        // Mengatur breadcrumb dan page
         $breadcrumb = (object)[
             'title' => 'Detail Tambang',
             'list' => ['Home', 'Tambang', 'Detail']
@@ -98,7 +94,6 @@ class MineController extends Controller
             'title' => 'Detail Data Tambang'
         ];
 
-        // Mengirim data ke view
         return view('mine.show', [
             'breadcrumb' => $breadcrumb,
             'page' => $page,
@@ -108,10 +103,9 @@ class MineController extends Controller
 
     public function edit(string $id)
     {
-        // Mengambil data reservation dengan join ke tabel mines, mines, dan users
+        Log::info('Accessed edit mine form.', ['mine_id' => $id]);
         $mine = Mines::find($id);
 
-        // Mengatur breadcrumb dan page
         $breadcrumb = (object)[
             'title' => 'Edit Tambang',
             'list' => ['Home', 'Tambang', 'Edit']
@@ -120,7 +114,6 @@ class MineController extends Controller
             'title' => 'Edit Data Tambang'
         ];
 
-        // Mengirim data ke view
         return view('mine.edit', [
             'breadcrumb' => $breadcrumb,
             'page' => $page,
@@ -130,34 +123,35 @@ class MineController extends Controller
 
     public function update(Request $request, $id)
     {
+        Log::info('Attempting to update mine.', ['mine_id' => $id, 'data' => $request->all()]);
         $validatedData = $request->validate([
             'mine_name' => 'required|string|max:255',
             'address' => 'required|string',
         ]);
 
-        // Temukan data dan update di database
         $mine = Mines::findOrFail($id);
         $mine->update($validatedData);
 
-        // Redirect dengan pesan sukses
+        Log::info('Mine updated successfully.', ['mine_id' => $id]);
         return redirect('/mine')->with('success', 'Data tambang berhasil diperbarui.');
     }
 
     public function destroy(string $id)
     {
-        // Cek apakah Tambang ada
+        Log::info('Attempting to delete mine.', ['mine_id' => $id]);
         $mine = Mines::find($id);
+
         if (!$mine) {
+            Log::warning('Mine not found for deletion.', ['mine_id' => $id]);
             return redirect('/mine')->with('error', 'Data Tambang tidak ditemukan');
         }
 
         try {
-            // Hapus data Tambang
             $mine->delete();
-
+            Log::info('Mine deleted successfully.', ['mine_id' => $id]);
             return redirect('/mine')->with('success', 'Data Tambang berhasil dihapus');
         } catch (\Illuminate\Database\QueryException $e) {
-            // Jika terjadi error ketika menghapus data
+            Log::error('Failed to delete mine.', ['mine_id' => $id, 'error' => $e->getMessage()]);
             return redirect('/mine')->with('error', 'Data Tambang gagal dihapus karena masih terdapat tabel lain yang terkait dengan data ini');
         }
     }

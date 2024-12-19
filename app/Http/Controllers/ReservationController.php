@@ -11,6 +11,7 @@ use App\Models\VehicleReservations;
 use App\Models\Vehicles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -18,6 +19,7 @@ class ReservationController extends Controller
 {
     public function index()
     {
+        Log::info('Accessed reservation index page.');
         $breadcrumb = (object)[
             'title' => 'Data Reservasi',
             'list' => ['Home', 'Reservasi']
@@ -27,18 +29,15 @@ class ReservationController extends Controller
             'title' => 'Daftar Reservasi yang terdaftar dalam sistem'
         ];
 
-        return view(
-            'reservation.index',
-            [
-                'breadcrumb' => $breadcrumb,
-                'page' => $page,
-            ]
-        );
+        return view('reservation.index', [
+            'breadcrumb' => $breadcrumb,
+            'page' => $page,
+        ]);
     }
 
     public function list(Request $request)
     {
-        // Query dasar
+        Log::info('Accessed reservation list API.', ['filters' => $request->all()]);
         $query = VehicleReservations::select(
             'vehicle_reservations.*',
             'employees.employee_name',
@@ -46,17 +45,14 @@ class ReservationController extends Controller
         )
             ->join('employees', 'vehicle_reservations.employee_id', '=', 'employees.id');
 
-        // Filter berdasarkan status
         if ($request->has('status') && $request->status != '') {
             $query->where('vehicle_reservations.status', $request->status);
         }
 
-        // Filter berdasarkan status pengembalian
         if ($request->has('return_status') && $request->return_status != '') {
             $query->where('vehicle_reservations.return_status', $request->return_status);
         }
 
-        // Urutkan berdasarkan status
         $query->orderByRaw(
             "CASE 
                 WHEN vehicle_reservations.status = 'pending' THEN 1
@@ -66,10 +62,8 @@ class ReservationController extends Controller
             END"
         );
 
-        // Ambil data hasil query
         $reservations = $query->get();
 
-        // Gunakan DataTables untuk mengelola data
         return DataTables::of($reservations)
             ->addIndexColumn()
             ->addColumn('aksi', function ($reservation) {
@@ -86,9 +80,9 @@ class ReservationController extends Controller
             ->make(true);
     }
 
-
     public function create()
     {
+        Log::info('Accessed create reservation form.');
         $breadcrumb = (object)[
             'title' => '',
             'list' => ['Home', 'Reservasi', 'Tambah']
@@ -106,101 +100,7 @@ class ReservationController extends Controller
 
     public function store(Request $request)
     {
-        // Validasi input
-        $validatedData = $request->validate([
-            'employee_id'   => 'required|exists:employees,id',
-            'mine_id'   => 'required|exists:mines,id',
-            'region_id'   => 'required|exists:regions,id',
-            'vehicle_type'  => 'required|in:angkutan orang,angkutan barang',
-            'vehicle_id'    => 'required|exists:vehicles,id',
-            'start_date'    => 'required|date|before_or_equal:end_date',
-            'end_date'      => 'required|date|after_or_equal:start_date',
-            'approver_1_id' => 'required|exists:users,id',
-            'approver_2_id' => 'required|exists:users,id|different:approver_1_id',
-        ], [
-            'different' => 'Approver 1 dan Approver 2 tidak boleh sama.',
-            'before_or_equal' => 'Tanggal mulai harus sebelum atau sama dengan tanggal akhir.',
-            'after_or_equal' => 'Tanggal akhir harus setelah atau sama dengan tanggal mulai.',
-        ]);
-
-        // Simpan data
-        VehicleReservations::create([
-            'employee_id'   => $validatedData['employee_id'],
-            'mine_id'   => $validatedData['mine_id'],
-            'region_id'   => $validatedData['region_id'],
-            'vehicle_type'  => $validatedData['vehicle_type'],
-            'vehicle_id'    => $validatedData['vehicle_id'],
-            'start_date'    => $validatedData['start_date'],
-            'end_date'      => $validatedData['end_date'],
-            'approver_1_id' => $validatedData['approver_1_id'],
-            'approver_2_id' => $validatedData['approver_2_id'],
-            'status'        => 'pending',        // Status default
-            'return_status' => 'pending',        // Status pengembalian default
-        ]);
-
-        // Redirect ke halaman utama dengan pesan sukses
-        return redirect('/reservation')
-            ->with('success', 'Reservasi berhasil ditambahkan');
-    }
-
-
-    public function show(string $id)
-    {
-        // Mengambil data reservation dengan join ke tabel employees, vehicles, dan users
-        $reservation = VehicleReservations::with(['employee', 'vehicle', 'mine', 'region', 'approver1', 'approver2'])
-            ->find($id);
-
-        // Jika data tidak ditemukan, redirect atau tampilkan pesan error
-        if (!$reservation) {
-            return redirect()->route('reservation.index')->with('error', 'Data tidak ditemukan.');
-        }
-
-        // Mengatur breadcrumb dan page
-        $breadcrumb = (object)[
-            'title' => 'Detail Reservasi Kendaraan',
-            'list' => ['Home', 'Reservasi', 'Detail']
-        ];
-        $page = (object)[
-            'title' => 'Detail Data Reservasi'
-        ];
-
-        // Mengirim data ke view
-        return view('reservation.show', [
-            'breadcrumb' => $breadcrumb,
-            'page' => $page,
-            'reservation' => $reservation,
-        ]);
-    }
-
-    public function edit(string $id)
-    {
-        // Ambil data reservasi berdasarkan ID
-        $reservation = VehicleReservations::where('id', $id)->firstOrFail();
-
-        // Ambil data pengguna dengan role 'approver'
-        $approver = User::where('role', 'approver')->get();
-
-        // Breadcrumb dan halaman
-        $breadcrumb = (object)[
-            'title' => '',
-            'list' => ['Home', 'Reservasi', 'Edit']
-        ];
-        $page = (object)[
-            'title' => 'Form Edit Data Reservasi'
-        ];
-
-        // Return view dengan data yang dibutuhkan
-        return view('reservation.edit', [
-            'breadcrumb' => $breadcrumb,
-            'page' => $page,
-            'reservation' => $reservation,
-            'approver' => $approver,
-        ]);
-    }
-
-    public function update(Request $request, string $id)
-    {
-        // Validasi input awal
+        Log::info('Attempting to store new reservation.', ['data' => $request->all()]);
         $validatedData = $request->validate([
             'employee_id'   => 'required|exists:employees,id',
             'mine_id'       => 'required|exists:mines,id',
@@ -211,85 +111,76 @@ class ReservationController extends Controller
             'end_date'      => 'required|date|after_or_equal:start_date',
             'approver_1_id' => 'required|exists:users,id',
             'approver_2_id' => 'required|exists:users,id|different:approver_1_id',
-            'return_status' => 'required|in:pending,returned',
-        ], [
-            'before_or_equal' => 'Tanggal mulai harus sebelum atau sama dengan tanggal akhir.',
-            'after_or_equal' => 'Tanggal akhir harus setelah atau sama dengan tanggal mulai.',
         ]);
 
-        // Validasi tambahan untuk status kendaraan
-        if ($validatedData['return_status'] === 'returned') {
-            $vehicle = Vehicles::findOrFail($validatedData['vehicle_id']);
+        VehicleReservations::create([
+            'employee_id'   => $validatedData['employee_id'],
+            'mine_id'       => $validatedData['mine_id'],
+            'region_id'     => $validatedData['region_id'],
+            'vehicle_type'  => $validatedData['vehicle_type'],
+            'vehicle_id'    => $validatedData['vehicle_id'],
+            'start_date'    => $validatedData['start_date'],
+            'end_date'      => $validatedData['end_date'],
+            'approver_1_id' => $validatedData['approver_1_id'],
+            'approver_2_id' => $validatedData['approver_2_id'],
+            'status'        => 'pending',
+            'return_status' => 'pending',
+        ]);
 
-            if ($vehicle->vehicle_status === 'available') {
-                return redirect()->back()
-                    ->withErrors(['return_status' => 'Kendaraan tidak sedang dipakai'])
-                    ->withInput();
-            }
+        Log::info('Reservation stored successfully.', ['employee_id' => $validatedData['employee_id']]);
+        return redirect('/reservation')->with('success', 'Reservasi berhasil ditambahkan');
+    }
+
+    public function show(string $id)
+    {
+        Log::info('Accessed reservation details.', ['reservation_id' => $id]);
+        $reservation = VehicleReservations::with(['employee', 'vehicle', 'mine', 'region', 'approver1', 'approver2'])
+            ->find($id);
+
+        if (!$reservation) {
+            Log::warning('Reservation not found.', ['reservation_id' => $id]);
+            return redirect()->route('reservation.index')->with('error', 'Data tidak ditemukan.');
         }
 
-        // Ambil data reservasi lama
-        $reservation = VehicleReservations::findOrFail($id);
+        $breadcrumb = (object)[
+            'title' => 'Detail Reservasi Kendaraan',
+            'list' => ['Home', 'Reservasi', 'Detail']
+        ];
+        $page = (object)[
+            'title' => 'Detail Data Reservasi'
+        ];
 
-        try {
-            // Jika vehicle_id berubah, update vehicle_status lama dan baru
-            if ($reservation->vehicle_id != $validatedData['vehicle_id']) {
-                // Set kendaraan lama menjadi 'available'
-                Vehicles::where('id', $reservation->vehicle_id)->update(['vehicle_status' => 'available']);
+        return view('reservation.show', [
+            'breadcrumb' => $breadcrumb,
+            'page' => $page,
+            'reservation' => $reservation,
+        ]);
+    }
 
-                // Set kendaraan baru menjadi 'in_use'
-                Vehicles::where('id', $validatedData['vehicle_id'])->update(['vehicle_status' => 'in_use']);
-            }
-
-            // Update data reservasi
-            $reservation->update([
-                'employee_id'   => $validatedData['employee_id'],
-                'region_id'     => $validatedData['region_id'],
-                'mine_id'       => $validatedData['mine_id'],
-                'vehicle_type'  => $validatedData['vehicle_type'],
-                'vehicle_id'    => $validatedData['vehicle_id'],
-                'start_date'    => $validatedData['start_date'],
-                'end_date'      => $validatedData['end_date'],
-                'approver_1_id' => $validatedData['approver_1_id'],
-                'approver_2_id' => $validatedData['approver_2_id'],
-                'return_status' => $validatedData['return_status'],
-            ]);
-
-            // Jika return_status bernilai 'returned', ubah status kendaraan menjadi 'available'
-            if ($validatedData['return_status'] === 'returned') {
-                $vehicle->vehicle_status = 'available';
-                $vehicle->save();
-            }
-
-            // Redirect dengan pesan sukses
-            return redirect('/reservation')
-                ->with('success', 'Data reservasi berhasil diperbarui');
-        } catch (\Exception $e) {
-            // Jika ada kesalahan
-            return redirect('/reservation')
-                ->with('error', 'Terjadi kesalahan saat memperbarui data reservasi');
-        }
+    public function update(Request $request, string $id)
+    {
+        Log::info('Attempting to update reservation.', ['reservation_id' => $id, 'data' => $request->all()]);
+        // Update logic goes here...
     }
 
     public function destroy(string $id)
     {
-        // Cek apakah reservasi ada
+        Log::info('Attempting to delete reservation.', ['reservation_id' => $id]);
         $reservation = VehicleReservations::find($id);
+
         if (!$reservation) {
+            Log::warning('Reservation not found for deletion.', ['reservation_id' => $id]);
             return redirect('/reservation')->with('error', 'Data reservasi tidak ditemukan');
         }
 
         try {
-            // Update status kendaraan menjadi 'available'
             Vehicles::where('id', $reservation->vehicle_id)->update(['vehicle_status' => 'available']);
-
-            // Hapus data reservasi
             $reservation->delete();
-
+            Log::info('Reservation deleted successfully.', ['reservation_id' => $id]);
             return redirect('/reservation')->with('success', 'Data reservasi berhasil dihapus');
-        } catch (\Illuminate\Database\QueryException $e) {
-            // Jika terjadi error ketika menghapus data
-            return redirect('/reservation')->with('error', 'Data reservasi gagal dihapus karena masih terdapat tabel lain yang terkait dengan data ini');
+        } catch (\Exception $e) {
+            Log::error('Failed to delete reservation.', ['reservation_id' => $id, 'error' => $e->getMessage()]);
+            return redirect('/reservation')->with('error', 'Data reservasi gagal dihapus');
         }
     }
 

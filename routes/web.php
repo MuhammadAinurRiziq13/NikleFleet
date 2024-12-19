@@ -33,7 +33,7 @@ Route::get('/get-approver-pusat', [ReservationController::class, 'getApproverPus
 
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect('/login');
 });
 
 Route::get('/login', [AuthController::class, 'index'])->name('login');
